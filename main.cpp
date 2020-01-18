@@ -13,6 +13,10 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <SDL.h>
 
+#include <imgui.h>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
+
 #include "defer.h"
 #include "resource.h"
 #include "shader.h"
@@ -433,6 +437,19 @@ int main(int argc, char **argv)
     ret = !gladLoadGLLoader((GLADloadproc) SDL_GL_GetProcAddress);
     CHECK_RET(ret, "Failed to initialized GLAD!");
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    DEFER({ ImGui::DestroyContext(); });
+
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL2_InitForOpenGL(window, glcontext);
+    DEFER({ ImGui_ImplSDL2_Shutdown(); });
+
+    ImGui_ImplOpenGL3_Init("#version 330");
+    DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
+
     RenderCtx render_ctx;
     ProvideShaders(&render_ctx);
     ProvideModel(&render_ctx);
@@ -449,6 +466,8 @@ int main(int argc, char **argv)
 
     while (running) {
         while (SDL_PollEvent(&ev)) {
+            ImGui_ImplSDL2_ProcessEvent(&ev);
+
             switch (ev.type) {
             case SDL_QUIT:
                 running = false;
@@ -469,7 +488,18 @@ int main(int argc, char **argv)
         }
 
         Update(&render_ctx, dt);
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame(window);
+        ImGui::NewFrame();
+
+        ImGui::Begin("Configuration");
+        ImGui::End();
+
+        ImGui::Render();
         DrawFrame(&render_ctx);
+
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
 
         float now = SDL_GetTicks() / 1000.f;

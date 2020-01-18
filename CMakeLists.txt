@@ -19,7 +19,17 @@ INCLUDE_DIRECTORIES(glad/include)
 ADD_SUBDIRECTORY(stb-image)
 INCLUDE_DIRECTORIES(stb-image)
 
+ADD_SUBDIRECTORY(imgui)
+INCLUDE_DIRECTORIES(imgui/imgui imgui/imgui/examples)
+
 INCLUDE_DIRECTORIES(${glm_INCLUDE_DIRS})
 ADD_EXECUTABLE(${EXENAME} ${SOURCES})
-TARGET_LINK_LIBRARIES(${EXENAME} SDL2::SDL2 glad stb-image OpenGL::OpenGL ${glm_LIBRARY})
+TARGET_LINK_LIBRARIES(${EXENAME}
+    SDL2::SDL2
+    glad
+    stb-image
+    imgui
+    OpenGL::OpenGL
+    ${glm_LIBRARY}
+)
 TARGET_COMPILE_OPTIONS(${EXENAME} PRIVATE -std=c++17 -g -O0 -Wall -Wextra -fno-strict-aliasing)
