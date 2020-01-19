@@ -1,8 +1,8 @@
 #pragma once
 
 #include <optional>
-#include <vector>
 #include <string>
+#include <functional>
 
 #include "resource.h"
 
@@ -24,6 +24,6 @@ struct ShaderProgram {
     ~ShaderProgram();
 };
 
-typedef void (*ShaderMod)(std::vector<char> *);
+typedef std::function<void (std::string *)> ShaderMod;
 std::optional<Shader> LoadShaderFile(const std::string &filename, int type, ShaderMod mod);
 std::optional<Shader> LoadShaderFile(const std::string &filename, int type);

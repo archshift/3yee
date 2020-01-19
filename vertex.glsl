@@ -5,15 +5,15 @@ layout (location = 1) in vec2 i_texpos;
 uniform mat4 u_model;
 uniform mat4 u_view;
 uniform mat4 u_proj;
+uniform float u_time;
 
 out vec2 texpos;
 out vec3 normal;
 
 vec3 fn(float u, float v)
 {
-    float x = cos(u) * sin(v);
-    float y = cos(v) * cos(v);
-    float z = sin(u) * sin(v);
+    float t = u_time;
+    __INCLUDE_XYZ__
     return vec3(x, y, z);
 }
 
@@ -23,7 +23,7 @@ vec3 fn_normal(float u, float v)
     vec3 df_du = fn(u + eps, v) - fn(u - eps, v);
     vec3 df_dv = fn(u, v + eps) - fn(u, v - eps);
     vec3 normal_unnormalized = cross(df_du, df_dv);
-    return abs(normalize(normal_unnormalized));
+    return normalize(normal_unnormalized) / 2 + 0.5;
 }
 
 void main()

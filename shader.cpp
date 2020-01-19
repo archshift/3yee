@@ -42,11 +42,11 @@ std::optional<Shader> LoadShaderFile(const std::string &filename, int type, Shad
         return {};
     }
 
-    std::vector<char> shader_src(1024);
+    std::string shader_src(1024, ' ');
     size_t buf_pos = 0;
     while (fread(&shader_src[buf_pos], 1, 1024, file) != 0) {
         buf_pos += 1024;
-        shader_src.resize(buf_pos);
+        shader_src.resize(buf_pos, ' ');
     }
 
     fclose(file);
@@ -66,6 +66,10 @@ std::optional<Shader> LoadShaderFile(const std::string &filename, int type, Shad
         glGetShaderInfoLog(shader.id, 512, nullptr, &log[0]);
         printf("%s", &log[0]);
 
+        printf("========= Dumping shader source ========\n");
+        printf("%s", shader_src.c_str());
+        printf("========= End shader source ========\n");
+
         return {};
     }
 
@@ -76,6 +80,6 @@ std::optional<Shader> LoadShaderFile(const std::string &filename, int type, Shad
 
 std::optional<Shader> LoadShaderFile(const std::string &filename, int type)
 {
-    auto shader_mod = [](std::vector<char> *){};
+    auto shader_mod = [](std::string *){};
     return LoadShaderFile(filename, type, shader_mod);
 }

@@ -20,7 +20,7 @@ ADD_SUBDIRECTORY(stb-image)
 INCLUDE_DIRECTORIES(stb-image)
 
 ADD_SUBDIRECTORY(imgui)
-INCLUDE_DIRECTORIES(imgui/imgui imgui/imgui/examples)
+INCLUDE_DIRECTORIES(imgui/imgui imgui/imgui/examples imgui/imgui/misc/cpp)
 
 INCLUDE_DIRECTORIES(${glm_INCLUDE_DIRS})
 ADD_EXECUTABLE(${EXENAME} ${SOURCES})
