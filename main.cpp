@@ -5,6 +5,7 @@
 #include <deque>
 #include <unordered_set>
 #include <string>
+#include <vector>
 
 #include <glad/glad.h>
 #include <stb_image.h>
@@ -251,11 +252,6 @@ void DrawFrame(RenderCtx *ctx)
     GLint u_proj = glGetUniformLocation(sh_program.id, "u_proj");
     glUniform1f(u_time, (float)SDL_GetTicks() / 1000.f);
 
-    // const Texture &texture = ctx->texture.value();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, texture.texture);
-    // glUniform1i(u_texture, 0);
-
     Model &model = ctx->verts.value();
     glUniformMatrix4fv(u_model, 1, GL_FALSE, glm::value_ptr(model.xform));
     auto &vertices = model.vertices;
@@ -367,7 +363,7 @@ void DrawUi(RenderCtx *ctx)
         eq_diff |= ImGui::InputText("y=", &eqs.y);
         eq_diff |= ImGui::InputText("z=", &eqs.z);
 
-        int res[2] = { model.res_x, model.res_y };
+        int res[2] = { (int)model.res_x, (int)model.res_y };
         model_diff |= ImGui::InputInt2("Num Triangles (u, v)", res);
         model.res_x = res[0];
         model.res_y = res[1];

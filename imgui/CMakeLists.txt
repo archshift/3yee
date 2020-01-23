@@ -13,6 +13,8 @@ ADD_LIBRARY(imgui STATIC
     imgui/examples/imgui_impl_sdl.cpp
 )
 
-TARGET_LINK_LIBRARIES(imgui
-    SDL2::SDL2
-)
+if (NOT ${EMSCRIPTEN})
+    TARGET_LINK_LIBRARIES(imgui
+        SDL2::SDL2
+    )
+endif()
