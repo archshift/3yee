@@ -3,17 +3,13 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 SET(EXENAME 3yee)
 PROJECT(${EXENAME})
 
-SET(EMSCRIPTEN FALSE CACHE BOOL "Build with emscripten")
-if (NOT ${EMSCRIPTEN})
-    FIND_PACKAGE(SDL2 REQUIRED)
-    FIND_PACKAGE(GLEW 2.0 REQUIRED)
-    FIND_PACKAGE(OpenGL REQUIRED)
-endif()
+### Sources
 
 SET(SOURCES
-    main.cpp
-    shader.cpp
+    src/main.cpp
+    src/shader.cpp
 )
+INCLUDE_DIRECTORIES(src)
 
 if (${EMSCRIPTEN})
     ADD_COMPILE_OPTIONS(-s USE_SDL=2)
@@ -21,6 +17,14 @@ if (${EMSCRIPTEN})
 endif()
 ADD_COMPILE_OPTIONS(-g -O0 -Wall -Wextra -fno-strict-aliasing)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+
+### Dependencies
+
+SET(EMSCRIPTEN FALSE CACHE BOOL "Build with emscripten")
+if (NOT ${EMSCRIPTEN})
+    FIND_PACKAGE(SDL2 REQUIRED)
+    FIND_PACKAGE(OpenGL REQUIRED)
+endif()
 
 ADD_SUBDIRECTORY(glad)
 INCLUDE_DIRECTORIES(glad/include)
@@ -34,7 +38,8 @@ INCLUDE_DIRECTORIES(imgui/imgui imgui/imgui/examples imgui/imgui/misc/cpp)
 ADD_SUBDIRECTORY(glm)
 INCLUDE_DIRECTORIES(glm)
 
-INCLUDE_DIRECTORIES(${glm_INCLUDE_DIRS})
+### Executable creation
+
 ADD_EXECUTABLE(${EXENAME} ${SOURCES})
 TARGET_LINK_LIBRARIES(${EXENAME}
     glad
