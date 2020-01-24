@@ -370,7 +370,8 @@ void DrawUi(RenderCtx *ctx)
     bool cam_diff = false;
     bool eq_diff = false;
 
-    ImGui::Begin("Model Params");
+    bool mparam_open = true;
+    ImGui::Begin("Model Params", &mparam_open, ImGuiWindowFlags_AlwaysAutoResize);
     {
         eq_diff |= ImGui::InputText("x=", &eqs.x);
         eq_diff |= ImGui::InputText("y=", &eqs.y);
@@ -391,9 +392,13 @@ void DrawUi(RenderCtx *ctx)
         model.y_min = range_v[0];
         model.y_max = range_v[1];
     }
+    auto pos = ImGui::GetWindowPos();
+    pos.y += ImGui::GetWindowSize().y;
     ImGui::End();
 
-    ImGui::Begin("Camera Params");
+    bool cparam_open = true;
+    ImGui::SetNextWindowPos(pos);
+    ImGui::Begin("Camera Params", &cparam_open, ImGuiWindowFlags_AlwaysAutoResize);
     {
         float fov_degrees = camera.fov * 180 / M_PI;
         cam_diff |= ImGui::InputFloat("Field of View", &fov_degrees);
