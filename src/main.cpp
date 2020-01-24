@@ -277,11 +277,11 @@ void DrawFrame(RenderCtx *ctx)
     glBindVertexArray(vao.vao);
     if (vao.dirty) {
         glBindBuffer(GL_ARRAY_BUFFER, vao.vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(VIndices), &indices[0], GL_STATIC_DRAW);
 
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(VIndices), &indices[0], GL_STATIC_DRAW);
+        
         glVertexAttribPointer(VTX_POS_ARG, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), VA_OFFSETOF(Vertex, x));
         glEnableVertexAttribArray(VTX_POS_ARG);
 
@@ -292,6 +292,7 @@ void DrawFrame(RenderCtx *ctx)
     }
 
     glDrawElements(GL_TRIANGLES, indices.size() * sizeof(VIndices) / sizeof(float), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 void Update(RenderCtx *ctx, float dt)
@@ -441,11 +442,11 @@ int ProvideShaders(RenderCtx *ctx)
             free(glsl_xyz);
         }
     };
-    auto sh_vertex = LoadShaderFile("../vertex.glsl", GL_VERTEX_SHADER, vertex_xform);
+    auto sh_vertex = LoadShaderFile("vertex.glsl", GL_VERTEX_SHADER, vertex_xform);
     if (!sh_vertex)
         return -1;
 
-    auto sh_fragment = LoadShaderFile("../fragment.glsl", GL_FRAGMENT_SHADER);
+    auto sh_fragment = LoadShaderFile("fragment.glsl", GL_FRAGMENT_SHADER);
     if (!sh_fragment)
         return -1;
 
@@ -639,7 +640,7 @@ int main(int argc, char **argv)
     ImGui_ImplSDL2_InitForOpenGL(window, glcontext);
     DEFER({ ImGui_ImplSDL2_Shutdown(); });
 
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL3_Init("#version 300 es");
     DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
 
     RenderCtx render_ctx;

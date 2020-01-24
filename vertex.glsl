@@ -1,6 +1,8 @@
-#version 330 core
+#version 300 es
 layout (location = 0) in vec3 i_pos;
 layout (location = 1) in vec2 i_texpos;
+
+precision mediump float;
 
 uniform mat4 u_model;
 uniform mat4 u_view;
@@ -23,7 +25,7 @@ vec3 fn_normal(float u, float v)
     vec3 df_du = fn(u + eps, v) - fn(u - eps, v);
     vec3 df_dv = fn(u, v + eps) - fn(u, v - eps);
     vec3 normal_unnormalized = cross(df_du, df_dv);
-    return normalize(normal_unnormalized) / 2 + 0.5;
+    return normalize(normal_unnormalized) * 0.5 + 0.5;
 }
 
 void main()
