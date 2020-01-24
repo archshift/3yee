@@ -634,7 +634,7 @@ int main(int argc, char **argv)
 #endif
 
     int win_w = 1600, win_h = 900;
-    int win_flags = SDL_WINDOW_OPENGL;
+    int win_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
     SDL_Window *window = SDL_CreateWindow("...", 0, 0, win_w, win_h, win_flags);
     CHECK_RET(!window, "SDL create Window failed!");
     DEFER({ SDL_DestroyWindow(window); });
