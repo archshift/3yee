@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include <glad/glad.h>
+#include <GL/glew.h>
 
 Shader::Shader(int type)
 {

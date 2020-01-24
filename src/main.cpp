@@ -7,13 +7,14 @@
 #include <string>
 #include <vector>
 
-#include <glad/glad.h>
 #include <stb_image.h>
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/rotate_vector.hpp>
+
 #include <SDL.h>
+#include <GL/glew.h>
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -23,6 +24,10 @@
 #include "defer.h"
 #include "resource.h"
 #include "shader.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 struct RenderCtx;
 void ProvideModel(RenderCtx *ctx);
@@ -231,6 +236,13 @@ struct RenderCtx {
     ModelParams model_params;
     CameraParams camera_params;
     Equations equations;
+
+    bool running;
+    float time;
+    float dt;
+
+    SDL_Window *window;
+    ImGuiIO *imgui_io;
 };
 
 #define VA_OFFSETOF(type, mem) ( &((type *)NULL)->mem )
@@ -511,6 +523,62 @@ void ProvideCamera(RenderCtx *ctx)
     ctx->camera = camera;
 }
 
+void QuitLoop(RenderCtx *ctx)
+{
+#ifdef __EMSCRIPTEN__
+    (void)ctx;
+    emscripten_cancel_main_loop();
+#else
+    ctx->running = false;
+#endif
+}
+
+void MainLoop(RenderCtx *ctx)
+{
+    SDL_Event ev;
+    while (SDL_PollEvent(&ev)) {
+        ImGui_ImplSDL2_ProcessEvent(&ev);
+
+        switch (ev.type) {
+        case SDL_QUIT:
+            QuitLoop(ctx);
+            break;
+        case SDL_KEYDOWN:
+        case SDL_KEYUP: {
+            if (ctx->imgui_io->WantCaptureKeyboard)
+                break;
+
+            Input input;
+            input.type = InputType::Key;
+            input.digital = {
+                ev.key.keysym.scancode,
+                ev.key.state == SDL_PRESSED,
+            };
+            ctx->input_buf.push(input);
+            break;
+        }
+        default: break;
+        }
+    }
+
+    Update(ctx, ctx->dt);
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame(ctx->window);
+
+    ImGui::NewFrame();
+    DrawUi(ctx);
+    ImGui::Render();
+    
+    DrawFrame(ctx);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    SDL_GL_SwapWindow(ctx->window);
+
+    float now = SDL_GetTicks() / 1000.f;
+    ctx->dt = now - ctx->time;
+    ctx->time = now;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -533,9 +601,16 @@ int main(int argc, char **argv)
     CHECK_RET(ret, "SDL Init failed!");
     DEFER({ SDL_Quit(); });
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#ifdef __EMSCRIPTEN__
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+#endif
 
     int win_w = 1600, win_h = 900;
     int win_flags = SDL_WINDOW_OPENGL;
@@ -547,8 +622,12 @@ int main(int argc, char **argv)
     CHECK_RET(!glcontext, "Failed to init GL context!");
     DEFER({ SDL_GL_DeleteContext(glcontext); });
 
-    ret = !gladLoadGLLoader((GLADloadproc) SDL_GL_GetProcAddress);
-    CHECK_RET(ret, "Failed to initialized GLAD!");
+    ret = SDL_GL_MakeCurrent(window, glcontext);
+    CHECK_RET(ret, "Failed to make the GL context current!");
+
+    glewExperimental = GL_TRUE;
+    ret = glewInit();
+    CHECK_RET(ret != GLEW_OK, "Failed to initialize GLEW!");
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -571,53 +650,19 @@ int main(int argc, char **argv)
 
     glEnable(GL_DEPTH_TEST);
 
-    SDL_Event ev;
-    bool running = true;
+    render_ctx.running = true;
 
-    float time = SDL_GetTicks() / 1000.f;
-    float dt = 0.f;
+    render_ctx.time = SDL_GetTicks() / 1000.f;
+    render_ctx.dt = 0.f;
 
-    while (running) {
-        while (SDL_PollEvent(&ev)) {
-            ImGui_ImplSDL2_ProcessEvent(&ev);
+    render_ctx.window = window;
+    render_ctx.imgui_io = &io;
 
-            switch (ev.type) {
-            case SDL_QUIT:
-                running = false;
-                break;
-            case SDL_KEYDOWN:
-            case SDL_KEYUP: {
-                if (io.WantCaptureKeyboard)
-                    break;
-
-                Input input;
-                input.type = InputType::Key;
-                input.digital = {
-                    ev.key.keysym.scancode,
-                    ev.key.state == SDL_PRESSED,
-                };
-                render_ctx.input_buf.push(input);
-                break;
-            }
-            default: break;
-            }
-        }
-
-        Update(&render_ctx, dt);
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame(window);
-
-        ImGui::NewFrame();
-        DrawUi(&render_ctx);
-        ImGui::Render();
-        
-        DrawFrame(&render_ctx);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        SDL_GL_SwapWindow(window);
-
-        float now = SDL_GetTicks() / 1000.f;
-        dt = now - time;
-        time = now;
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg((void(*)(void *))MainLoop, &render_ctx, 0, 1);
+#else
+    while (render_ctx.running) {
+        MainLoop(&render_ctx);
     }
+#endif
 }
