@@ -202,7 +202,7 @@ struct Camera {
 
     Camera(CameraParams params)
     {
-        this->projection = glm::perspective(params.fov / 2, params.aspect, params.near, params.far);        
+        set_params(params);
     }
 
     const glm::mat4 &xform()
@@ -216,6 +216,11 @@ struct Camera {
             xform_dirty = false;
         }
         return cached_xform;
+    }
+
+    void set_params(CameraParams params)
+    {
+        this->projection = glm::perspective(params.fov / 2, params.aspect, params.near, params.far);        
     }
 };
 
@@ -563,6 +568,16 @@ void MainLoop(RenderCtx *ctx)
             ctx->input_buf.push(input);
             break;
         }
+        case SDL_WINDOWEVENT: {
+            int window_w, window_h;
+            SDL_GetWindowSize(ctx->window, &window_w, &window_h);
+            glViewport(0, 0, window_w, window_h);
+            ctx->camera_params.aspect = (float)window_w / (float)window_h;
+
+            Camera &cam = ctx->camera.value();
+            cam.set_params(ctx->camera_params);
+        }
+
         default: break;
         }
     }
