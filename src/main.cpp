@@ -241,6 +241,7 @@ struct RenderCtx {
     ModelParams model_params;
     CameraParams camera_params;
     Equations equations;
+    std::optional<float> recompile_timeout;
 
     bool running;
     float time;
@@ -417,8 +418,17 @@ void DrawUi(RenderCtx *ctx)
     ImGui::End();
 
     if (eq_diff) {
-        printf("Refreshing equation...\n");
-        ProvideShaders(ctx);
+        ctx->recompile_timeout = 0.5;
+    }
+    if (ctx->recompile_timeout) {
+        *ctx->recompile_timeout -= ctx->dt;
+
+        if (*ctx->recompile_timeout <= 0) {
+            ctx->recompile_timeout.reset();
+
+            printf("Refreshing equation...\n");
+            ProvideShaders(ctx);
+        }
     }
 
     if (model_diff) {
