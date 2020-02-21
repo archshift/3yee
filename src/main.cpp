@@ -56,6 +56,7 @@ struct Equations {
 };
 
 enum class InputType {
+    Reset,
     Key,
     Analog1d,
     Analog2d,
@@ -312,40 +313,27 @@ void Update(RenderCtx *ctx, float dt)
     std::optional<Input> input;
     while ((input = ctx->input_buf.pop())) {
         switch (input->type) {
-        case InputType::Key:
+        case InputType::Reset:
+            movement *= 0;
+            look *= 0;
+            break;
+        case InputType::Key: {
+            int digital_press_vector = input->digital.press - !input->digital.press;
+        
             switch (input->digital.source) {
-            case SDL_SCANCODE_W:
-                movement.z = -input->digital.press;
-                break;
-            case SDL_SCANCODE_S:
-                movement.z = input->digital.press;
-                break;
-            case SDL_SCANCODE_A:
-                movement.x = -input->digital.press;
-                break;
-            case SDL_SCANCODE_D:
-                movement.x = input->digital.press;
-                break;
-            case SDL_SCANCODE_LSHIFT:
-                movement.y = input->digital.press;
-                break;
-            case SDL_SCANCODE_LCTRL:
-                movement.y = -input->digital.press;
-                break;
-            case SDL_SCANCODE_UP:
-                look.y = input->digital.press;
-                break;
-            case SDL_SCANCODE_DOWN:
-                look.y = -input->digital.press;
-                break;
-            case SDL_SCANCODE_LEFT:
-                look.x = -input->digital.press;
-                break;
-            case SDL_SCANCODE_RIGHT:
-                look.x = input->digital.press;
-                break;
+            case SDL_SCANCODE_W:            movement.z -= digital_press_vector; break;
+            case SDL_SCANCODE_S:            movement.z += digital_press_vector; break;
+            case SDL_SCANCODE_A:            movement.x -= digital_press_vector; break;
+            case SDL_SCANCODE_D:            movement.x += digital_press_vector; break;
+            case SDL_SCANCODE_SPACE:        movement.y += digital_press_vector; break;
+            case SDL_SCANCODE_LSHIFT:       movement.y -= digital_press_vector; break;
+            case SDL_SCANCODE_UP:           look.y += digital_press_vector; break;
+            case SDL_SCANCODE_DOWN:         look.y -= digital_press_vector; break;
+            case SDL_SCANCODE_LEFT:         look.x -= digital_press_vector; break;
+            case SDL_SCANCODE_RIGHT:        look.x += digital_press_vector; break;
             }
             break;
+        }
         default:
             break;
         }
@@ -580,6 +568,8 @@ void MainLoop(RenderCtx *ctx)
         case SDL_KEYUP: {
             if (ctx->imgui_io->WantCaptureKeyboard)
                 break;
+            if (ev.key.repeat)
+                break;
 
             Input input;
             input.type = InputType::Key;
@@ -591,13 +581,24 @@ void MainLoop(RenderCtx *ctx)
             break;
         }
         case SDL_WINDOWEVENT: {
-            int window_w, window_h;
-            SDL_GetWindowSize(ctx->window, &window_w, &window_h);
-            glViewport(0, 0, window_w, window_h);
-            ctx->camera_params.aspect = (float)window_w / (float)window_h;
+            switch (ev.window.event) {
+            case SDL_WINDOWEVENT_FOCUS_LOST: {
+                Input input;
+                input.type = InputType::Reset;
+                ctx->input_buf.push(input);
+                break;
+            }
+            default: {
+                int window_w, window_h;
+                SDL_GetWindowSize(ctx->window, &window_w, &window_h);
+                glViewport(0, 0, window_w, window_h);
+                ctx->camera_params.aspect = (float)window_w / (float)window_h;
 
-            Camera &cam = ctx->camera.value();
-            cam.set_params(ctx->camera_params);
+                Camera &cam = ctx->camera.value();
+                cam.set_params(ctx->camera_params);
+                break;
+            }
+            }
         }
 
         default: break;
@@ -657,7 +658,8 @@ int main(int argc, char **argv)
 
     int win_w = 1600, win_h = 900;
     int win_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-    SDL_Window *window = SDL_CreateWindow("...", 0, 0, win_w, win_h, win_flags);
+    const char *win_title = "3yee | Parametric Equation Viewer";
+    SDL_Window *window = SDL_CreateWindow(win_title, 0, 0, win_w, win_h, win_flags);
     CHECK_RET(!window, "SDL create Window failed!");
     DEFER({ SDL_DestroyWindow(window); });
 
