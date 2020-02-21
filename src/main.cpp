@@ -36,7 +36,7 @@ int ProvideShaders(RenderCtx *ctx);
 
 struct ModelParams {
     unsigned res_x = 1000, res_y = 1000;
-    float x_min = -10, x_max = 10, y_min = -10, y_max = 10;
+    float x_min = -3, x_max = 3, y_min = -3, y_max = 3;
 };
 
 struct CameraParams {
@@ -44,11 +44,14 @@ struct CameraParams {
     float aspect = 16.0/9.0;
     float near = 0.1;
     float far = 1000;
+
+    float move_speed = 10.f;
+    glm::vec2 look_speed = glm::vec2(1.f, 0.5f);
 };
 
 struct Equations {
     std::string x = "u";
-    std::string y = "cos(u) + cos(v)";
+    std::string y = "-5.0 * sin(t) * exp(-abs(u) - abs(v))";
     std::string z = "v";
 };
 
@@ -353,8 +356,9 @@ void Update(RenderCtx *ctx, float dt)
     //model.xform = glm::rotate(model.xform, dt * (float)M_PI, glm::vec3(0.f, 1.f, 0.f));
 
     Camera &camera = ctx->camera.value();
-    static const float mv_speed = 10.f;
-    static const float look_speed = 3.f;
+    CameraParams &cparams = ctx->camera_params;
+    float mv_speed = cparams.move_speed;
+    glm::vec2 look_speed = cparams.look_speed;
 
     camera.look += dt * look_speed * look;
     glm::vec3 look_movement = glm::rotate(movement, -camera.look.x, glm::vec3(0, 1, 0));
@@ -369,7 +373,8 @@ void Update(RenderCtx *ctx, float dt)
 void DrawUi(RenderCtx *ctx)
 {
     ModelParams &model = ctx->model_params;
-    CameraParams &camera = ctx->camera_params;
+    Camera &camera = ctx->camera.value();
+    CameraParams &cparams = ctx->camera_params;
     Equations &eqs = ctx->equations;
 
     bool model_diff = false;
@@ -406,14 +411,20 @@ void DrawUi(RenderCtx *ctx)
     ImGui::SetNextWindowPos(pos);
     ImGui::Begin("Camera Params", &cparam_open, ImGuiWindowFlags_AlwaysAutoResize);
     {
-        float fov_degrees = camera.fov * 180 / M_PI;
-        cam_diff |= ImGui::InputFloat("Field of View", &fov_degrees);
-        camera.fov = fov_degrees * M_PI / 180;
+        cam_diff |= ImGui::InputFloat3("Position", &camera.pos[0]);
+        cam_diff |= ImGui::InputFloat2("Direction (rad)", &camera.look[0]);
 
-        float clip_range[2] = { camera.near, camera.far };
+        float fov_degrees = cparams.fov * 180 / M_PI;
+        cam_diff |= ImGui::InputFloat("Field of View", &fov_degrees);
+        cparams.fov = fov_degrees * M_PI / 180;
+
+        float clip_range[2] = { cparams.near, cparams.far };
         cam_diff |= ImGui::InputFloat2("Clipping Range", clip_range);
-        camera.near = clip_range[0];
-        camera.far = clip_range[1];
+        cparams.near = clip_range[0];
+        cparams.far = clip_range[1];
+
+        cam_diff |= ImGui::InputFloat3("Movement Speed", &cparams.move_speed);
+        cam_diff |= ImGui::InputFloat2("Look Speed (rad/s)", &cparams.look_speed[0]);
     }
     ImGui::End();
 
@@ -438,7 +449,7 @@ void DrawUi(RenderCtx *ctx)
 
     if (cam_diff) {
         printf("Refreshing camera...\n");
-        ProvideCamera(ctx);
+        camera.set_params(cparams);
     }
 }
 
@@ -540,7 +551,8 @@ void ProvideTexture(RenderCtx *ctx)
 void ProvideCamera(RenderCtx *ctx)
 {
     Camera camera(ctx->camera_params);
-    camera.pos = glm::vec3(0.f, 0.f, 2.f);
+    camera.pos = glm::vec3(0.f, 5.f, 10.f);
+    camera.look = glm::vec2(0.f, (float)M_PI / -8.f);
     ctx->camera = camera;
 }
 
