@@ -6,6 +6,7 @@ PROJECT(${EXENAME})
 ### Sources
 
 SET(SOURCES
+    src/camera.cpp
     src/main.cpp
     src/renderer.cpp
     src/shader.cpp

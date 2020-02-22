@@ -5,6 +5,7 @@
 #include <typeindex>
 #include <atomic>
 #include <memory>
+#include <string>
 #include "resource.h"
 #include "optref.h"
 
@@ -50,6 +51,7 @@ struct Object final {
     Uuid uuid;
     std::unordered_map<std::type_index, std::unique_ptr<Component>> components;
     bool updating;
+    bool deleted = false;
 
     template <typename T>
     optref<T> component()

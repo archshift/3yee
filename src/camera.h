@@ -1,6 +1,7 @@
 #pragma once
 
 #include "glm.h"
+#include "object.h"
 
 struct CameraParams {
     float fov = M_PI / 2;
@@ -12,7 +13,15 @@ struct CameraParams {
     glm::vec2 look_speed = glm::vec2(1.f, 0.5f);
 };
 
-struct Camera {
+
+struct CameraEditor : Component {
+    CameraParams camera_params;
+
+    void update(RenderCtx *ctx, Object *obj, float dt);
+};
+
+
+struct Camera : Component {
     glm::mat4 projection;
     glm::mat4 cached_xform;
     bool xform_dirty = true;
@@ -25,21 +34,25 @@ struct Camera {
         set_params(params);
     }
 
-    const glm::mat4 &xform()
-    {
-        if (xform_dirty) {
-            cached_xform = glm::identity<glm::mat4>();
-            cached_xform = glm::translate(cached_xform, pos);
-            cached_xform = glm::rotate(cached_xform, -look.x, glm::vec3(0, 1, 0));
-            cached_xform = glm::rotate(cached_xform, look.y, glm::vec3(1, 0, 0));
-            cached_xform = glm::inverse(cached_xform);
-            xform_dirty = false;
-        }
-        return cached_xform;
-    }
+    const glm::mat4 &xform();
+    void set_params(CameraParams params);
+    void set_xform(glm::vec3 pos, glm::vec3 look);
 
-    void set_params(CameraParams params)
-    {
-        this->projection = glm::perspective(params.fov / 2, params.aspect, params.near, params.far);        
-    }
+    void update(RenderCtx *ctx, Object *obj, float dt);
 };
+
+
+inline Object CreateCamera()
+{
+    Object object;
+
+    CameraEditor camera_editor;
+    Camera camera(camera_editor.camera_params);
+    camera.pos = glm::vec3(0.f, 5.f, 10.f);
+    camera.look = glm::vec2(0.f, (float)M_PI / -8.f);
+
+    object.add_component(std::move(camera_editor));
+    object.add_component(std::move(camera));
+
+    return object;
+}

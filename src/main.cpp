@@ -18,6 +18,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include "glm.h"
+#include "game.h"
 #include "camera.h"
 #include "defer.h"
 #include "resource.h"
@@ -29,85 +30,13 @@
 #include <emscripten.h>
 #endif
 
-struct RenderCtx;
-void ProvideCamera(RenderCtx *ctx);
-
-enum class InputType {
-    Reset,
-    Key,
-    Analog1d,
-    Analog2d,
-};
-struct Input {
-    InputType type;
-
-    struct Digital {
-        int source;
-        bool press;
-    };
-    struct Analog1d {
-        int source;
-        float vel;
-    };
-    struct Analog2d {
-        int source;
-        glm::vec2 vel;
-    };
-
-    union {
-        Input::Digital digital;
-        Input::Analog1d analog1d;
-        Input::Analog2d analog2d;
-    };
-};
-
-struct InputBuffer {
-    std::deque<Input> buf;
-
-    void push(Input input)
-    {
-        buf.push_back(input);
-    }
-
-    std::optional<Input> pop()
-    {
-        if (buf.empty())
-            return {};
-        Input out = buf[0];
-        buf.pop_front();
-        return out;
-    }
-};
-
-struct Controller {
-    glm::vec3 movement = glm::zero<glm::vec3>();
-    glm::vec2 look = glm::zero<glm::vec2>();
-};
-
-struct RenderCtx {
-    std::optional<Camera> camera;
-
-    std::unordered_map<UuidRef, Object> objects;
-
-    InputBuffer input_buf;
-    Controller controller;
-
-    ModelParams model_params;
-    CameraParams camera_params;
-    std::optional<float> recompile_timeout;
-
-    bool running;
-    float time;
-    float dt;
-
-    SDL_Window *window;
-    ImGuiIO *imgui_io;
-};
 
 void DrawFrame(RenderCtx *ctx)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    Camera &cam = ctx->camera.value();
+
+    Object &cam_obj = ctx->objects.at(ctx->main_camera.value());
+    Camera &cam = cam_obj.component<Camera>().value();
 
     for (auto it = ctx->objects.begin(); it != ctx->objects.end(); it++) {
         Object &object = it->second;
@@ -152,75 +81,23 @@ void Update(RenderCtx *ctx, float dt)
         }
     }
 
-    //Model &model = ctx->verts.value();
-    // // want to rotate pi rad/sec
-    //model.xform = glm::rotate(model.xform, dt * (float)M_PI, glm::vec3(0.f, 1.f, 0.f));
-
-    Camera &camera = ctx->camera.value();
-    CameraParams &cparams = ctx->camera_params;
-    float mv_speed = cparams.move_speed;
-    glm::vec2 look_speed = cparams.look_speed;
-
-    camera.look += dt * look_speed * look;
-    glm::vec3 look_movement = glm::rotate(movement, -camera.look.x, glm::vec3(0, 1, 0));
-    camera.pos += dt * mv_speed * look_movement;
-    if (camera.look.y > M_PI/2)
-        camera.look.y = M_PI/2;
-    if (camera.look.y < -M_PI/2)
-        camera.look.y = -M_PI/2;
-    camera.xform_dirty = true;
-
-
-    for (auto it = ctx->objects.begin(); it != ctx->objects.end(); it++) {
+    for (auto it = ctx->objects.begin(); it != ctx->objects.end();) {
         Object &object = it->second;
+        if (object.deleted) {
+            it = ctx->objects.erase(it);
+            continue;
+        }
+
         object.update(ctx, dt);
+        it++;
     }
 }
 
-void DrawObjectUi(RenderCtx *ctx)
+UuidRef AddObject(RenderCtx *ctx, Object object)
 {
-    Camera &camera = ctx->camera.value();
-    CameraParams &cparams = ctx->camera_params;
-
-    bool cam_diff = false;
-
-    bool cparam_open = true;
-    ImGui::Begin("Camera Params", &cparam_open, ImGuiWindowFlags_AlwaysAutoResize);
-    {
-        cam_diff |= ImGui::InputFloat3("Position", &camera.pos[0]);
-        cam_diff |= ImGui::InputFloat2("Direction (rad)", &camera.look[0]);
-
-        float fov_degrees = cparams.fov * 180 / M_PI;
-        cam_diff |= ImGui::InputFloat("Field of View", &fov_degrees);
-        cparams.fov = fov_degrees * M_PI / 180;
-
-        float clip_range[2] = { cparams.near, cparams.far };
-        cam_diff |= ImGui::InputFloat2("Clipping Range", clip_range);
-        cparams.near = clip_range[0];
-        cparams.far = clip_range[1];
-
-        cam_diff |= ImGui::InputFloat3("Movement Speed", &cparams.move_speed);
-        cam_diff |= ImGui::InputFloat2("Look Speed (rad/s)", &cparams.look_speed[0]);
-    }
-    ImGui::End();
-
-    if (cam_diff) {
-        printf("Refreshing camera...\n");
-        camera.set_params(cparams);
-    }
-}
-
-void ProvideCamera(RenderCtx *ctx)
-{
-    Camera camera(ctx->camera_params);
-    camera.pos = glm::vec3(0.f, 5.f, 10.f);
-    camera.look = glm::vec2(0.f, (float)M_PI / -8.f);
-    ctx->camera = camera;
-}
-
-void AddObject(RenderCtx *ctx, Object object)
-{
-    ctx->objects[object.uuid] = std::move(object);
+    UuidRef uuid = object.uuid;
+    ctx->objects[uuid] = std::move(object);
+    return uuid;
 }
 
 void QuitLoop(RenderCtx *ctx)
@@ -271,10 +148,14 @@ void MainLoop(RenderCtx *ctx)
                 int window_w, window_h;
                 SDL_GetWindowSize(ctx->window, &window_w, &window_h);
                 glViewport(0, 0, window_w, window_h);
-                ctx->camera_params.aspect = (float)window_w / (float)window_h;
 
-                Camera &cam = ctx->camera.value();
-                cam.set_params(ctx->camera_params);
+                Object &cam_obj = ctx->objects.at(ctx->main_camera.value());
+                CameraEditor &cam_editor = cam_obj.component<CameraEditor>().value();
+                CameraParams &cparams = cam_editor.camera_params;
+                Camera &cam = cam_obj.component<Camera>().value();
+
+                cparams.aspect = (float)window_w / (float)window_h;
+                cam.set_params(cparams);
                 break;
             }
             }
@@ -290,9 +171,7 @@ void MainLoop(RenderCtx *ctx)
 
     Update(ctx, ctx->dt);
 
-    DrawObjectUi(ctx);
     ImGui::Render();
-    
     DrawFrame(ctx);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(ctx->window);
@@ -368,7 +247,8 @@ int main(int argc, char **argv)
 
     RenderCtx render_ctx;
     AddObject(&render_ctx, CreateSurface());
-    ProvideCamera(&render_ctx);
+    AddObject(&render_ctx, CreateSurface());
+    render_ctx.main_camera = AddObject(&render_ctx, CreateCamera());
 
     glEnable(GL_DEPTH_TEST);
 

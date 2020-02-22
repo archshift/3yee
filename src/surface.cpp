@@ -1,5 +1,7 @@
 #include "surface.h"
 
+#include <atomic>
+
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -13,8 +15,12 @@ void SurfaceEditor::update(RenderCtx *ctx, Object *obj, float dt)
     bool model_diff = false;
     bool eq_diff = false;
 
-    bool mparam_open = true;
-    ImGui::Begin("Model Params", &mparam_open, ImGuiWindowFlags_AlwaysAutoResize);
+    bool window_open = !obj->deleted;
+
+    std::string window_name = "Surface ";
+    window_name += std::to_string(eq_num);
+
+    ImGui::Begin(window_name.c_str(), &window_open, ImGuiWindowFlags_AlwaysAutoResize);
     {
         eq_diff |= ImGui::InputText("x=", &eqs.x);
         eq_diff |= ImGui::InputText("y=", &eqs.y);
@@ -63,6 +69,8 @@ void SurfaceEditor::update(RenderCtx *ctx, Object *obj, float dt)
         auto new_mesh = create_mesh();
         mesh = std::move(new_mesh);
     }
+
+    obj->deleted = !window_open;
 }
 
 
@@ -149,8 +157,9 @@ Mesh SurfaceEditor::create_mesh()
 Object CreateSurface()
 {
     Object obj;
+    static std::atomic_size_t eq_num = 1;
 
-    SurfaceEditor surface_editor;
+    SurfaceEditor surface_editor(eq_num.fetch_add(1));
     Mesh mesh = surface_editor.create_mesh();
     ShaderProgram shader = surface_editor.create_shader().value();
     Renderer renderer(std::move(shader));

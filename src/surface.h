@@ -20,9 +20,16 @@ struct ShaderProgram;
 struct Mesh;
 
 struct SurfaceEditor : Component {
+    size_t eq_num;
+
     Equations eqs;
     ModelParams model_params;
     float recompile_timeout;
+
+    SurfaceEditor(size_t eq_num):
+        eq_num(eq_num)
+    {
+    }
 
     void update(RenderCtx *ctx, Object *obj, float dt);
 
