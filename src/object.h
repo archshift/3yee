@@ -40,6 +40,10 @@ struct Component {
         (void)obj;
         (void)dt;
     }
+
+    virtual ~Component()
+    {
+    }
 };
 
 struct Object final {

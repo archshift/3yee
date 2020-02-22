@@ -16,5 +16,5 @@
     { \
         *this = std::move(other); \
     } \
-    Resource(Resource &other) = delete;
+    Resource(const Resource &other) = delete;
 
