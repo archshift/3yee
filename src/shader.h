@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <functional>
+#include <initializer_list>
 
 #include "resource.h"
 
@@ -15,13 +16,18 @@ struct Shader {
     ~Shader();
 };
 
+typedef std::initializer_list<const std::reference_wrapper<Shader>> ShaderList;
+
 struct ShaderProgram {
     uint64_t id;
 
     RESOURCE_IMPL(ShaderProgram);
 
-    ShaderProgram();
+    static std::optional<ShaderProgram> link(ShaderList shaders);
     ~ShaderProgram();
+
+private:
+    ShaderProgram();
 };
 
 typedef std::function<void (std::string *)> ShaderMod;

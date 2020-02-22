@@ -1,17 +1,13 @@
 #include <optional>
-#include <array>
 #include <cstdio>
 #include <cstdint>
 #include <deque>
-#include <unordered_set>
+#include <unordered_map>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include <stb_image.h>
-#include <glm/glm.hpp>
-#include <glm/ext/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/rotate_vector.hpp>
 
 #include <SDL.h>
 #include <GL/glew.h>
@@ -21,39 +17,20 @@
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_opengl3.h>
 
+#include "glm.h"
+#include "camera.h"
 #include "defer.h"
 #include "resource.h"
-#include "shader.h"
+#include "surface.h"
+#include "object.h"
+#include "renderer.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 
 struct RenderCtx;
-void ProvideModel(RenderCtx *ctx);
 void ProvideCamera(RenderCtx *ctx);
-int ProvideShaders(RenderCtx *ctx);
-
-struct ModelParams {
-    unsigned res_x = 1000, res_y = 1000;
-    float x_min = -3, x_max = 3, y_min = -3, y_max = 3;
-};
-
-struct CameraParams {
-    float fov = M_PI / 2;
-    float aspect = 16.0/9.0;
-    float near = 0.1;
-    float far = 1000;
-
-    float move_speed = 10.f;
-    glm::vec2 look_speed = glm::vec2(1.f, 0.5f);
-};
-
-struct Equations {
-    std::string x = "u";
-    std::string y = "-5.0 * sin(t) * exp(-abs(u) - abs(v))";
-    std::string z = "v";
-};
 
 enum class InputType {
     Reset,
@@ -102,149 +79,21 @@ struct InputBuffer {
     }
 };
 
-struct Texture {
-    GLuint texture;
-
-    RESOURCE_IMPL(Texture);
-
-    static std::optional<Texture> from_path(const std::string &path)
-    {
-        int w, h, chan;
-        uint8_t *buf = stbi_load(path.c_str(), &w, &h, &chan, 4);
-        if (!buf) {
-            printf("Could not load image at `%s`!\n", path.c_str());
-            return {};
-        }
-
-        Texture tex = Texture()
-            .with_data(buf, w, h, GL_RGBA);
-
-        stbi_image_free(buf);
-        return tex;
-    }
-
-    Texture()
-    {
-        glGenTextures(1, &texture);
-    }
-
-
-    ~Texture()
-    {
-        if (!valid)
-            return;
-        glDeleteTextures(1, &texture);
-    }
-
-    Texture with_data(const uint8_t *buf, int w, int h, GLint format)
-    {
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, buf);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        return std::move(*this);
-    }
-};
-
-#pragma pack(push, 1)
-struct Vertex {
-    float x, y, z;
-    float tex_u, tex_v;
-};
-struct VIndices {
-    unsigned first, second, third;
-};
-#pragma pack(pop)
-
-struct VertArrayObj {
-    GLuint vbo, ebo, vao;
-    bool dirty = true;
-
-    RESOURCE_IMPL(VertArrayObj);
-
-    VertArrayObj()
-    {
-        glGenBuffers(1, &vbo);
-        glGenBuffers(1, &ebo);
-        glGenVertexArrays(1, &vao);
-    }
-
-    ~VertArrayObj()
-    {
-        if (!valid)
-            return;
-        glDeleteBuffers(1, &vbo);
-        glDeleteBuffers(1, &ebo);
-        glDeleteVertexArrays(1, &vao);
-    }
-};
-
-struct Model {
-    VertArrayObj vao;
-
-    glm::mat4 xform = glm::identity<glm::mat4>();
-
-    std::vector<Vertex> vertices;
-    std::vector<VIndices> indices;
-
-    Model(std::vector<Vertex> vertices, std::vector<VIndices> indices):
-        vertices(vertices), indices(indices)
-    {
-    }
-};
-
-struct Camera {
-    glm::mat4 projection;
-    glm::mat4 cached_xform;
-    bool xform_dirty = true;
-
-    glm::vec3 pos = glm::zero<glm::vec3>();
-    glm::vec2 look = glm::zero<glm::vec2>();
-
-    Camera(CameraParams params)
-    {
-        set_params(params);
-    }
-
-    const glm::mat4 &xform()
-    {
-        if (xform_dirty) {
-            cached_xform = glm::identity<glm::mat4>();
-            cached_xform = glm::translate(cached_xform, pos);
-            cached_xform = glm::rotate(cached_xform, -look.x, glm::vec3(0, 1, 0));
-            cached_xform = glm::rotate(cached_xform, look.y, glm::vec3(1, 0, 0));
-            cached_xform = glm::inverse(cached_xform);
-            xform_dirty = false;
-        }
-        return cached_xform;
-    }
-
-    void set_params(CameraParams params)
-    {
-        this->projection = glm::perspective(params.fov / 2, params.aspect, params.near, params.far);        
-    }
-};
-
 struct Controller {
     glm::vec3 movement = glm::zero<glm::vec3>();
     glm::vec2 look = glm::zero<glm::vec2>();
 };
 
 struct RenderCtx {
-    std::optional<ShaderProgram> sh_program;
-    std::optional<Model> verts;
-    std::optional<Texture> texture;
     std::optional<Camera> camera;
+
+    std::unordered_map<UuidRef, Object> objects;
 
     InputBuffer input_buf;
     Controller controller;
 
     ModelParams model_params;
     CameraParams camera_params;
-    Equations equations;
     std::optional<float> recompile_timeout;
 
     bool running;
@@ -255,54 +104,18 @@ struct RenderCtx {
     ImGuiIO *imgui_io;
 };
 
-#define VA_OFFSETOF(type, mem) ( &((type *)NULL)->mem )
-
 void DrawFrame(RenderCtx *ctx)
 {
-#define VTX_POS_ARG 0
-#define VTX_TEXPOS_ARG 1
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    Camera &cam = ctx->camera.value();
 
-    const ShaderProgram &sh_program = ctx->sh_program.value();
-    glUseProgram(sh_program.id);
-
-    GLint u_time = glGetUniformLocation(sh_program.id, "u_time");
-    // GLint u_texture = glGetUniformLocation(sh_program, "u_texture");
-    GLint u_model = glGetUniformLocation(sh_program.id, "u_model");
-    GLint u_view = glGetUniformLocation(sh_program.id, "u_view");
-    GLint u_proj = glGetUniformLocation(sh_program.id, "u_proj");
-    glUniform1f(u_time, (float)SDL_GetTicks() / 1000.f);
-
-    Model &model = ctx->verts.value();
-    glUniformMatrix4fv(u_model, 1, GL_FALSE, glm::value_ptr(model.xform));
-    auto &vertices = model.vertices;
-    auto &indices = model.indices;
-    auto &vao = model.vao;
-
-    Camera &camera = ctx->camera.value();
-    glUniformMatrix4fv(u_view, 1, GL_FALSE, glm::value_ptr(camera.xform()));
-    glUniformMatrix4fv(u_proj, 1, GL_FALSE, glm::value_ptr(camera.projection));
-
-    glBindVertexArray(vao.vao);
-    if (vao.dirty) {
-        glBindBuffer(GL_ARRAY_BUFFER, vao.vbo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.ebo);
-
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(VIndices), &indices[0], GL_STATIC_DRAW);
-        
-        glVertexAttribPointer(VTX_POS_ARG, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), VA_OFFSETOF(Vertex, x));
-        glEnableVertexAttribArray(VTX_POS_ARG);
-
-        glVertexAttribPointer(VTX_TEXPOS_ARG, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), VA_OFFSETOF(Vertex, tex_u));
-        glEnableVertexAttribArray(VTX_TEXPOS_ARG);
-
-        vao.dirty = false;
+    for (auto it = ctx->objects.begin(); it != ctx->objects.end(); it++) {
+        Object &object = it->second;
+        auto renderer = object.component<Renderer>();
+        if (renderer) {
+            renderer->get().draw(&object, &cam, ctx->time);
+        }
     }
-
-    glDrawElements(GL_TRIANGLES, indices.size() * sizeof(VIndices) / sizeof(float), GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
 }
 
 void Update(RenderCtx *ctx, float dt)
@@ -356,47 +169,22 @@ void Update(RenderCtx *ctx, float dt)
     if (camera.look.y < -M_PI/2)
         camera.look.y = -M_PI/2;
     camera.xform_dirty = true;
+
+
+    for (auto it = ctx->objects.begin(); it != ctx->objects.end(); it++) {
+        Object &object = it->second;
+        object.update(ctx, dt);
+    }
 }
 
-void DrawUi(RenderCtx *ctx)
+void DrawObjectUi(RenderCtx *ctx)
 {
-    ModelParams &model = ctx->model_params;
     Camera &camera = ctx->camera.value();
     CameraParams &cparams = ctx->camera_params;
-    Equations &eqs = ctx->equations;
 
-    bool model_diff = false;
     bool cam_diff = false;
-    bool eq_diff = false;
-
-    bool mparam_open = true;
-    ImGui::Begin("Model Params", &mparam_open, ImGuiWindowFlags_AlwaysAutoResize);
-    {
-        eq_diff |= ImGui::InputText("x=", &eqs.x);
-        eq_diff |= ImGui::InputText("y=", &eqs.y);
-        eq_diff |= ImGui::InputText("z=", &eqs.z);
-
-        int res[2] = { (int)model.res_x, (int)model.res_y };
-        model_diff |= ImGui::InputInt2("Num Triangles (u, v)", res);
-        model.res_x = res[0];
-        model.res_y = res[1];
-
-        float range_u[2] = { model.x_min, model.x_max };
-        model_diff |= ImGui::InputFloat2("Range (u)", range_u);
-        model.x_min = range_u[0];
-        model.x_max = range_u[1];
-
-        float range_v[2] = { model.y_min, model.y_max };
-        model_diff |= ImGui::InputFloat2("Range (v)", range_v);
-        model.y_min = range_v[0];
-        model.y_max = range_v[1];
-    }
-    auto pos = ImGui::GetWindowPos();
-    pos.y += ImGui::GetWindowSize().y;
-    ImGui::End();
 
     bool cparam_open = true;
-    ImGui::SetNextWindowPos(pos);
     ImGui::Begin("Camera Params", &cparam_open, ImGuiWindowFlags_AlwaysAutoResize);
     {
         cam_diff |= ImGui::InputFloat3("Position", &camera.pos[0]);
@@ -416,124 +204,10 @@ void DrawUi(RenderCtx *ctx)
     }
     ImGui::End();
 
-    if (eq_diff) {
-        ctx->recompile_timeout = 0.5;
-    }
-    if (ctx->recompile_timeout) {
-        *ctx->recompile_timeout -= ctx->dt;
-
-        if (*ctx->recompile_timeout <= 0) {
-            ctx->recompile_timeout.reset();
-
-            printf("Refreshing equation...\n");
-            ProvideShaders(ctx);
-        }
-    }
-
-    if (model_diff) {
-        printf("Refreshing model...\n");
-        ProvideModel(ctx);
-    }
-
     if (cam_diff) {
         printf("Refreshing camera...\n");
         camera.set_params(cparams);
     }
-}
-
-int ProvideShaders(RenderCtx *ctx)
-{
-    auto vertex_xform = [=](std::string *src){
-        const char *needle = "__INCLUDE_XYZ__";
-        size_t findpos = src->find(needle);
-
-        if (findpos != std::string::npos) {
-            char *glsl_xyz;
-            asprintf(&glsl_xyz,
-                "float x = %s;\n"
-                "float y = %s;\n"
-                "float z = %s;\n",
-                ctx->equations.x.c_str(),
-                ctx->equations.y.c_str(),
-                ctx->equations.z.c_str()
-            );
-            src->replace(findpos, strlen(needle), glsl_xyz);
-            free(glsl_xyz);
-        }
-    };
-    auto sh_vertex = LoadShaderFile("vertex.glsl", GL_VERTEX_SHADER, vertex_xform);
-    if (!sh_vertex)
-        return -1;
-
-    auto sh_fragment = LoadShaderFile("fragment.glsl", GL_FRAGMENT_SHADER);
-    if (!sh_fragment)
-        return -1;
-
-    ShaderProgram program;
-    glAttachShader(program.id, sh_vertex->id);
-    glAttachShader(program.id, sh_fragment->id);
-    glLinkProgram(program.id);
-
-    int success;
-    glGetProgramiv(program.id, GL_LINK_STATUS, &success);
-    if (!success) {
-        printf("Failed to link shaders!\n");
-
-        std::array<char, 512> log;
-        glGetProgramInfoLog(program.id, 512, nullptr, &log[0]);
-        printf("%s", &log[0]);
-        return -1;
-    }
-
-    ctx->sh_program = std::move(program);
-    return 0;
-}
-
-void ProvideModel(RenderCtx *ctx)
-{
-    ModelParams &params = ctx->model_params;
-
-    unsigned res_x = params.res_x;
-    unsigned res_y = params.res_y;
-
-    float x_min = params.x_min, x_max = params.x_max;
-    float y_min = params.y_min, y_max = params.y_max;
-
-    unsigned verts_x = res_x + 1;
-    unsigned verts_y = res_y + 1;
-    float width = x_max - x_min;
-    float height = y_max - y_min;
-
-    // NxN grid: (N+1)^2 vertices, NxNx2 triangles
-    std::vector<Vertex> vertices(verts_x * verts_y);
-    std::vector<VIndices> indices(res_x * res_y * 2);
-
-    for (unsigned i = 0; i < verts_x; i++) {
-        for (unsigned j = 0; j < verts_y; j++) {
-            float fract_x = (float)i / (float)verts_x;
-            float fract_y = (float)j / (float)verts_y;
-
-            float pos_x = x_min + fract_x * width;
-            float pos_y = y_min + fract_y * height;
-            vertices[i*verts_y+j] = { pos_x, -1, pos_y, 0, 0 };
-        }
-    }
-
-    for (unsigned i = 0; i < res_x; i++) {
-        for (unsigned j = 0; j < res_y; j++) {
-            unsigned offs = 2 * (i*res_y + j);
-            indices[offs]   = { (i+0)*verts_y+(j+0), (i+1)*verts_y+(j+0), (i+0)*verts_y+(j+1) };
-            indices[offs+1] = { (i+1)*verts_y+(j+1), (i+1)*verts_y+(j+0), (i+0)*verts_y+(j+1) };
-        }
-    }
-
-    ctx->verts.emplace(vertices, indices);
-}
-
-void ProvideTexture(RenderCtx *ctx)
-{
-    (void)ctx;
-    //ctx->texture = Texture::from_path("../space.jpg");
 }
 
 void ProvideCamera(RenderCtx *ctx)
@@ -542,6 +216,11 @@ void ProvideCamera(RenderCtx *ctx)
     camera.pos = glm::vec3(0.f, 5.f, 10.f);
     camera.look = glm::vec2(0.f, (float)M_PI / -8.f);
     ctx->camera = camera;
+}
+
+void AddObject(RenderCtx *ctx, Object object)
+{
+    ctx->objects[object.uuid] = std::move(object);
 }
 
 void QuitLoop(RenderCtx *ctx)
@@ -605,13 +284,13 @@ void MainLoop(RenderCtx *ctx)
         }
     }
 
-    Update(ctx, ctx->dt);
-
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame(ctx->window);
-
     ImGui::NewFrame();
-    DrawUi(ctx);
+
+    Update(ctx, ctx->dt);
+
+    DrawObjectUi(ctx);
     ImGui::Render();
     
     DrawFrame(ctx);
@@ -688,9 +367,7 @@ int main(int argc, char **argv)
     DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
 
     RenderCtx render_ctx;
-    ProvideShaders(&render_ctx);
-    ProvideModel(&render_ctx);
-    ProvideTexture(&render_ctx);
+    AddObject(&render_ctx, CreateSurface());
     ProvideCamera(&render_ctx);
 
     glEnable(GL_DEPTH_TEST);

@@ -7,7 +7,10 @@ PROJECT(${EXENAME})
 
 SET(SOURCES
     src/main.cpp
+    src/renderer.cpp
     src/shader.cpp
+    src/surface.cpp
+    src/texture.cpp
 )
 INCLUDE_DIRECTORIES(src)
 

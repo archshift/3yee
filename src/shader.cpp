@@ -16,11 +16,32 @@ Shader::~Shader()
     glDeleteShader(this->id);
 }
 
-
-
 ShaderProgram::ShaderProgram()
 {
     this->id = glCreateProgram();
+}
+
+std::optional<ShaderProgram> ShaderProgram::link(ShaderList shaders)
+{
+    ShaderProgram program;
+
+    for (auto it = shaders.begin(); it < shaders.end(); it++) {
+        glAttachShader(program.id, it->get().id);
+    }
+    glLinkProgram(program.id);
+
+    int success;
+    glGetProgramiv(program.id, GL_LINK_STATUS, &success);
+    if (!success) {
+        printf("Failed to link shaders!\n");
+
+        std::array<char, 512> log;
+        glGetProgramInfoLog(program.id, 512, nullptr, &log[0]);
+        printf("%s", &log[0]);
+        return {};
+    }
+
+    return program;
 }
 
 ShaderProgram::~ShaderProgram()
