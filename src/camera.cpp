@@ -5,7 +5,7 @@
 
 #include "game.h"
 
-void CameraEditor::update(RenderCtx *ctx, Object *obj, float dt)
+void CameraEditor::update(GameState *ctx, Object *obj, float dt)
 {
     (void)ctx; (void)dt;
 
@@ -64,7 +64,7 @@ void Camera::set_xform(glm::vec3 pos, glm::vec3 look)
     this->xform_dirty = true;
 }
 
-void Camera::update(RenderCtx *ctx, Object *obj, float dt)
+void Camera::update(GameState *ctx, Object *obj, float dt)
 {
     CameraEditor &editor = obj->component<CameraEditor>().value();
 

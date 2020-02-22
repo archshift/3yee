@@ -32,10 +32,10 @@ struct Uuid {
 };
 
 struct Object;
-struct RenderCtx;
+struct GameState;
 
 struct Component {
-    virtual void update(RenderCtx *ctx, Object *obj, float dt)
+    virtual void update(GameState *ctx, Object *obj, float dt)
     {
         (void)ctx;
         (void)obj;
@@ -76,7 +76,7 @@ struct Object final {
         return insert_ret.second;
     }
 
-    void update(RenderCtx *ctx, float dt)
+    void update(GameState *ctx, float dt)
     {
         updating = true;
         for (auto it = components.begin(); it != components.end(); it++) {

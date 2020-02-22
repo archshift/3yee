@@ -31,7 +31,7 @@
 #endif
 
 
-void DrawFrame(RenderCtx *ctx)
+void DrawFrame(GameState *ctx)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -47,7 +47,7 @@ void DrawFrame(RenderCtx *ctx)
     }
 }
 
-void Update(RenderCtx *ctx, float dt)
+void Update(GameState *ctx, float dt)
 {
     glm::vec3 &movement = ctx->controller.movement;
     glm::vec2 &look = ctx->controller.look;
@@ -93,14 +93,14 @@ void Update(RenderCtx *ctx, float dt)
     }
 }
 
-UuidRef AddObject(RenderCtx *ctx, Object object)
+UuidRef AddObject(GameState *ctx, Object object)
 {
     UuidRef uuid = object.uuid;
     ctx->objects[uuid] = std::move(object);
     return uuid;
 }
 
-void QuitLoop(RenderCtx *ctx)
+void QuitLoop(GameState *ctx)
 {
 #ifdef __EMSCRIPTEN__
     (void)ctx;
@@ -110,7 +110,7 @@ void QuitLoop(RenderCtx *ctx)
 #endif
 }
 
-void MainLoop(RenderCtx *ctx)
+void MainLoop(GameState *ctx)
 {
     SDL_Event ev;
     while (SDL_PollEvent(&ev)) {
@@ -245,26 +245,26 @@ int main(int argc, char **argv)
     ImGui_ImplOpenGL3_Init("#version 300 es");
     DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
 
-    RenderCtx render_ctx;
-    AddObject(&render_ctx, CreateSurface());
-    AddObject(&render_ctx, CreateSurface());
-    render_ctx.main_camera = AddObject(&render_ctx, CreateCamera());
+    GameState game_state;
+    AddObject(&game_state, CreateSurface());
+    AddObject(&game_state, CreateSurface());
+    game_state.main_camera = AddObject(&game_state, CreateCamera());
 
     glEnable(GL_DEPTH_TEST);
 
-    render_ctx.running = true;
+    game_state.running = true;
 
-    render_ctx.time = SDL_GetTicks() / 1000.f;
-    render_ctx.dt = 0.f;
+    game_state.time = SDL_GetTicks() / 1000.f;
+    game_state.dt = 0.f;
 
-    render_ctx.window = window;
-    render_ctx.imgui_io = &io;
+    game_state.window = window;
+    game_state.imgui_io = &io;
 
 #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop_arg((void(*)(void *))MainLoop, &render_ctx, 0, 1);
+    emscripten_set_main_loop_arg((void(*)(void *))MainLoop, &game_state, 0, 1);
 #else
-    while (render_ctx.running) {
-        MainLoop(&render_ctx);
+    while (game_state.running) {
+        MainLoop(&game_state);
     }
 #endif
 }

@@ -9,7 +9,7 @@
 
 #include "renderer.h"
 
-void SurfaceEditor::update(RenderCtx *ctx, Object *obj, float dt)
+void SurfaceEditor::update(GameState *ctx, Object *obj, float dt)
 {
     (void)ctx;
     bool model_diff = false;

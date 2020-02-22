@@ -9,7 +9,7 @@
 struct SDL_Window;
 struct ImGuiIO;
 
-struct RenderCtx {
+struct GameState {
     std::optional<UuidRef> main_camera;
 
     std::unordered_map<UuidRef, Object> objects;

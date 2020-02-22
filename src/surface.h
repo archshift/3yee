@@ -31,7 +31,7 @@ struct SurfaceEditor : Component {
     {
     }
 
-    void update(RenderCtx *ctx, Object *obj, float dt);
+    void update(GameState *ctx, Object *obj, float dt);
 
     Mesh create_mesh();
     std::optional<ShaderProgram> create_shader();

@@ -17,7 +17,7 @@ struct CameraParams {
 struct CameraEditor : Component {
     CameraParams camera_params;
 
-    void update(RenderCtx *ctx, Object *obj, float dt);
+    void update(GameState *ctx, Object *obj, float dt);
 };
 
 
@@ -38,7 +38,7 @@ struct Camera : Component {
     void set_params(CameraParams params);
     void set_xform(glm::vec3 pos, glm::vec3 look);
 
-    void update(RenderCtx *ctx, Object *obj, float dt);
+    void update(GameState *ctx, Object *obj, float dt);
 };
 
 
