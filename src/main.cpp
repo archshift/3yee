@@ -17,6 +17,7 @@
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_opengl3.h>
 
+#include "axes.h"
 #include "glm.h"
 #include "game.h"
 #include "camera.h"
@@ -91,13 +92,6 @@ void Update(GameState *ctx, float dt)
         object.update(ctx, dt);
         it++;
     }
-}
-
-UuidRef AddObject(GameState *ctx, Object object)
-{
-    UuidRef uuid = object.uuid;
-    ctx->objects[uuid] = std::move(object);
-    return uuid;
 }
 
 void QuitLoop(GameState *ctx)
@@ -246,9 +240,10 @@ int main(int argc, char **argv)
     DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
 
     GameState game_state;
-    AddObject(&game_state, CreateSurface());
-    AddObject(&game_state, CreateSurface());
-    game_state.main_camera = AddObject(&game_state, CreateCamera());
+    game_state.add_object(CreateSurface());
+    game_state.add_object(CreateSurface());
+    game_state.add_object(CreateAxes());
+    game_state.add_main_camera(CreateCamera());
 
     glEnable(GL_DEPTH_TEST);
 

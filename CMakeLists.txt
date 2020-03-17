@@ -6,6 +6,7 @@ PROJECT(${EXENAME})
 ### Sources
 
 SET(SOURCES
+    src/axes.cpp
     src/camera.cpp
     src/main.cpp
     src/renderer.cpp
@@ -17,8 +18,7 @@ INCLUDE_DIRECTORIES(src)
 
 SET(COPIES
     3yee.html
-    fragment.glsl
-    vertex.glsl
+    shaders
 )
 
 if (${EMSCRIPTEN})
@@ -65,7 +65,7 @@ if (NOT ${EMSCRIPTEN})
         SDL2::SDL2
     )
 else()
-    TARGET_LINK_OPTIONS(${EXENAME} PRIVATE "SHELL:--preload-file vertex.glsl --preload-file fragment.glsl")
+    TARGET_LINK_OPTIONS(${EXENAME} PRIVATE "SHELL:--preload-file shaders")
 endif()
 
 SET(COPIES_IN ${COPIES})
@@ -74,7 +74,7 @@ LIST(TRANSFORM COPIES_IN PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 LIST(TRANSFORM COPIES_OUT PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 ADD_CUSTOM_COMMAND(
     OUTPUT ${COPIES_OUT}
-    COMMAND cp ${COPIES_IN} ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND cp -r ${COPIES_IN} ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS ${COPIES_IN}
 )
 ADD_CUSTOM_TARGET(copying

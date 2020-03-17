@@ -95,11 +95,11 @@ std::optional<ShaderProgram> SurfaceEditor::create_shader()
             free(glsl_xyz);
         }
     };
-    auto sh_vertex = LoadShaderFile("vertex.glsl", GL_VERTEX_SHADER, vertex_xform);
+    auto sh_vertex = LoadShaderFile("shaders/surface.vert", GL_VERTEX_SHADER, vertex_xform);
     if (!sh_vertex)
         return {};
 
-    auto sh_fragment = LoadShaderFile("fragment.glsl", GL_FRAGMENT_SHADER);
+    auto sh_fragment = LoadShaderFile("shaders/surface.frag", GL_FRAGMENT_SHADER);
     if (!sh_fragment)
         return {};
 

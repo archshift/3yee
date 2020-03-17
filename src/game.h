@@ -23,4 +23,19 @@ struct GameState {
 
     SDL_Window *window;
     ImGuiIO *imgui_io;
+
+
+    UuidRef add_object(Object object)
+    {
+        UuidRef uuid = object.uuid;
+        objects[uuid] = std::move(object);
+        return uuid;
+    }
+
+    UuidRef add_main_camera(Object object)
+    {
+        UuidRef uuid = add_object(std::move(object));
+        main_camera = uuid;
+        return uuid;
+    }
 };
