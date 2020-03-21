@@ -163,7 +163,13 @@ void MainLoop(GameState *ctx)
     ImGui_ImplSDL2_NewFrame(ctx->window);
     ImGui::NewFrame();
 
+    ImGui::Begin("Configuration");
     Update(ctx, ctx->dt);
+
+    if (ImGui::Button("Add Surface")) {
+        ctx->add_object(CreateSurface());
+    }
+    ImGui::End();
 
     ImGui::Render();
     DrawFrame(ctx);
@@ -240,10 +246,9 @@ int main(int argc, char **argv)
     DEFER({ ImGui_ImplOpenGL3_Shutdown(); });
 
     GameState game_state;
-    game_state.add_object(CreateSurface());
+    game_state.add_main_camera(CreateCamera());
     game_state.add_object(CreateSurface());
     game_state.add_object(CreateAxes());
-    game_state.add_main_camera(CreateCamera());
 
     glEnable(GL_DEPTH_TEST);
 

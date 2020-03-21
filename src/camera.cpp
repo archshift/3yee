@@ -12,8 +12,7 @@ void CameraEditor::update(GameState *ctx, Object *obj, float dt)
     Camera &camera = obj->component<Camera>().value();
     bool cam_diff = false;
 
-    bool cparam_open = true;
-    ImGui::Begin("Camera Params", &cparam_open, ImGuiWindowFlags_AlwaysAutoResize);
+    if (ImGui::CollapsingHeader("Camera Params"))
     {
         cam_diff |= ImGui::InputFloat3("Position", &camera.pos[0]);
         cam_diff |= ImGui::InputFloat2("Direction (rad)", &camera.look[0]);
@@ -29,8 +28,9 @@ void CameraEditor::update(GameState *ctx, Object *obj, float dt)
 
         cam_diff |= ImGui::InputFloat3("Movement Speed", &camera_params.move_speed);
         cam_diff |= ImGui::InputFloat2("Look Speed (rad/s)", &camera_params.look_speed[0]);
+        
+        ImGui::Spacing();
     }
-    ImGui::End();
 
     if (cam_diff) {
         printf("Refreshing camera...\n");

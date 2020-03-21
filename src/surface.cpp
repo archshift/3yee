@@ -20,7 +20,7 @@ void SurfaceEditor::update(GameState *ctx, Object *obj, float dt)
     std::string window_name = "Surface ";
     window_name += std::to_string(eq_num);
 
-    ImGui::Begin(window_name.c_str(), &window_open, ImGuiWindowFlags_AlwaysAutoResize);
+    if (ImGui::CollapsingHeader(window_name.c_str(), &window_open))
     {
         eq_diff |= ImGui::InputText("x=", &eqs.x);
         eq_diff |= ImGui::InputText("y=", &eqs.y);
@@ -40,8 +40,9 @@ void SurfaceEditor::update(GameState *ctx, Object *obj, float dt)
         model_diff |= ImGui::InputFloat2("Range (v)", range_v);
         model_params.y_min = range_v[0];
         model_params.y_max = range_v[1];
+
+        ImGui::Spacing();
     }
-    ImGui::End();
 
     if (eq_diff) {
         recompile_timeout = 0.5;

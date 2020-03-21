@@ -48,8 +48,8 @@ inline Object CreateCamera()
 
     CameraEditor camera_editor;
     Camera camera(camera_editor.camera_params);
-    camera.pos = glm::vec3(0.f, 5.f, 10.f);
-    camera.look = glm::vec2(0.f, (float)M_PI / -8.f);
+    camera.pos = glm::vec3(7.f, 5.f, 7.f);
+    camera.look = glm::vec2((float)M_PI / -4.f, (float)M_PI / -8.f);
 
     object.add_component(std::move(camera_editor));
     object.add_component(std::move(camera));
