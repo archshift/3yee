@@ -4,5 +4,5 @@ cpu=4
 
 mkdir -p embuild
 cd embuild
-emconfigure cmake .. -DEMSCRIPTEN=1
+emcmake cmake .. -DCMAKE_BUILD_TYPE=Release -DEMSCRIPTEN=1
 emmake make -j$cpu
