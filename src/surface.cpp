@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 
 #include "renderer.h"
+#include "defer.h"
 
 void SurfaceEditor::update(GameState *ctx, Object *obj, float dt)
 {
@@ -19,6 +20,9 @@ void SurfaceEditor::update(GameState *ctx, Object *obj, float dt)
 
     std::string window_name = "Surface ";
     window_name += std::to_string(eq_num);
+
+    ImGui::PushID(window_name.c_str());
+    DEFER({ ImGui::PopID(); });
 
     if (ImGui::CollapsingHeader(window_name.c_str(), &window_open))
     {
